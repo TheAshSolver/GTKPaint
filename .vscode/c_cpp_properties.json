@@ -1,0 +1,35 @@
+{
+  "configurations": [
+    {
+      "name": "GTK4",
+      "includePath": [
+        "${workspaceFolder}/**",
+        "/usr/include/gtk-4.0",
+        "/usr/include/pango-1.0",
+        "/usr/include/fribidi",
+        "/usr/include/harfbuzz",
+        "/usr/include/gdk-pixbuf-2.0",
+        "/usr/include/webp",
+        "/usr/include/cairo",
+        "/usr/include/libxml2",
+        "/usr/include/freetype2",
+        "/usr/include/libpng16",
+        "/usr/include/pixman-1",
+        "/usr/include/graphene-1.0",
+        "/usr/lib64/graphene-1.0/include",
+        "/usr/include/glib-2.0",
+        "/usr/lib64/glib-2.0/include",
+        "/usr/include/libmount",
+        "/usr/include/blkid",
+        "/usr/include/sysprof-6"
+      ],
+      "defines": [
+        "WITH_GZFILEOP"
+      ],
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "c17",
+      "intelliSenseMode": "linux-gcc-x64"
+    }
+  ],
+  "version": 4
+}
