@@ -2,36 +2,44 @@
 
 
 static cairo_surface_t *surface = NULL;
+static GdkRGBA primary_colors ={.red = 1.0,.blue = 0.0,.green =  0.0, .alpha = 1.0};
 static double brush_size = 6.0;
-static double red = 1.0;
-static double blue = 0;
-static double green  = 0;
+static GdkRGBA secondary_colors ={.red = 0.0, .blue=0.0, .green =0.0, .alpha=1.0};
 static void clear_surface(void) {
     cairo_t *c = cairo_create(surface);
 
     cairo_set_source_rgb(c, 0,0,0);
     cairo_paint(c);
     cairo_destroy(c);
-
+    
 
 
 
 }
 
-static void eraser(GtkGesture *gesture, int press, double x, double y, GtkWidget *colorbutton){
-    red = 0;
-    green = 0;
-    blue = 0;
-    gtk_color_dialog_button_set_rgba(GTK_COLOR_DIALOG_BUTTON(colorbutton), &(GdkRGBA){0,0,0,1});
+static void interchange_colors(GtkGesture *gesture, int press, double x, double y, gpointer data){
+GtkWidget **colorpickers = (GtkWidget **)data;
+GdkRGBA temp = {.red = secondary_colors.red, .green = secondary_colors.green, .blue = secondary_colors.blue, .alpha = 1.0};
+secondary_colors = (GdkRGBA){.red = primary_colors.red, .green = primary_colors.green, .blue = primary_colors.blue, .alpha= 1.0};
+primary_colors = (GdkRGBA){.red = temp.red ,.green = temp.green, .blue = temp.blue, .alpha = 1.01};
+    gtk_color_dialog_button_set_rgba(GTK_COLOR_DIALOG_BUTTON(colorpickers[0]), &primary_colors);
+    gtk_color_dialog_button_set_rgba(GTK_COLOR_DIALOG_BUTTON(colorpickers[1]), &secondary_colors);
 }
 
 static void on_color_change(GtkColorDialogButton *button, gpointer data){
 const GdkRGBA *rgba;
 rgba = gtk_color_dialog_button_get_rgba(button);
-red = rgba->red;
-blue = rgba->blue;
-green = rgba->green;
+primary_colors.red = rgba->red;
+primary_colors.blue = rgba->blue;
+primary_colors.green = rgba->green;
+}
 
+static void on_secondary_color_change(GtkColorDialogButton *button, gpointer data){
+    const GdkRGBA *rgba;
+    rgba = gtk_color_dialog_button_get_rgba(button);
+    secondary_colors.red = rgba->red;
+    secondary_colors.blue = rgba->blue;
+    secondary_colors.green= rgba->green;
 }
 
 
@@ -75,7 +83,7 @@ static void draw_brush(GtkWidget *widget, double x, double y, double end_x, doub
     cairo_set_line_width(cairo, brush_size);
     cairo_set_line_cap(cairo,  CAIRO_LINE_CAP_ROUND);
     cairo_set_antialias(cairo, CAIRO_ANTIALIAS_BEST);
-    cairo_set_source_rgb(cairo, red,green, blue);
+    cairo_set_source_rgb(cairo, primary_colors.red,primary_colors.green, primary_colors.blue);
     cairo_move_to(cairo, x,y);
     cairo_line_to(cairo, end_x, end_y);
     cairo_stroke(cairo);
@@ -144,7 +152,8 @@ static void activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *slider;
     GtkWidget *color_picker_dialog;
     GtkWidget *color_picker_button;
-
+    GtkWidget *color_picker2;
+    
 
 
     header = gtk_header_bar_new();
@@ -163,11 +172,15 @@ static void activate(GtkApplication *app, gpointer user_data) {
     gtk_header_bar_pack_start(GTK_HEADER_BAR(header), text);
     gtk_widget_set_size_request(slider, 100, 25);
     gtk_header_bar_pack_start(GTK_HEADER_BAR(header), slider);
-
+    color_picker2 = gtk_color_dialog_button_new(gtk_color_dialog_new());
     color_picker_button = gtk_color_dialog_button_new(gtk_color_dialog_new());
+    color_picker2 = gtk_color_dialog_button_new(gtk_color_dialog_new());
+    gtk_color_dialog_button_set_rgba(GTK_COLOR_DIALOG_BUTTON(color_picker2), &secondary_colors);
+    g_signal_connect(color_picker2, "notify::rgba", G_CALLBACK(on_secondary_color_change), NULL);
     g_signal_connect(color_picker_button, "notify::rgba", G_CALLBACK(on_color_change), NULL);
     gtk_header_bar_pack_start(GTK_HEADER_BAR(header), color_picker_button);
-
+    gtk_header_bar_pack_start(GTK_HEADER_BAR(header), color_picker2);
+   
 
 
     drawing_area = gtk_drawing_area_new();
@@ -188,7 +201,10 @@ static void activate(GtkApplication *app, gpointer user_data) {
     press = gtk_gesture_click_new();
     gtk_gesture_single_set_button(GTK_GESTURE_SINGLE(press), GDK_BUTTON_SECONDARY);
     gtk_widget_add_controller(drawing_area, GTK_EVENT_CONTROLLER(press));
-    g_signal_connect(press, "pressed", G_CALLBACK(eraser), color_picker_button);
+    static GtkWidget *pickers[2];
+    pickers[0]= color_picker_button;
+    pickers[1] = color_picker2;
+    g_signal_connect(press, "pressed", G_CALLBACK(interchange_colors), pickers);
 
 
 
