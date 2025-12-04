@@ -1,5 +1,5 @@
 #include<gtk/gtk.h>
-
+#include<string.h>
 
 static cairo_surface_t *surface = NULL;
 static GdkRGBA primary_colors ={.red = 1.0,.blue = 0.0,.green =  0.0, .alpha = 1.0};
@@ -16,6 +16,12 @@ static void clear_surface(void) {
 
 
 }
+
+typedef struct TextWindow{
+    GtkWidget *window;
+    GtkEntryBuffer *buffer;
+}TextWindow;
+
 
 static void interchange_colors(GtkGesture *gesture, int press, double x, double y, gpointer data){
 GtkWidget **colorpickers = (GtkWidget **)data;
@@ -139,7 +145,63 @@ static void close_window(void) {
     }
 
 }
+static void on_save_button(GtkWidget *widget, gpointer data){
+    TextWindow *a = (TextWindow *)data;
+    char file_name[400];
+    strcpy(file_name, gtk_entry_buffer_get_text(a->buffer));
+    GtkWidget *window = a->window;
+    strcat(file_name, ".png");
+    if(surface){
+        cairo_surface_write_to_png(surface, file_name);
+    }
+    gtk_window_close(GTK_WINDOW(window));
+}
+static void on_close_button(GtkWidget *widget, gpointer data){
+    GtkWidget *window = (GtkWidget*) data;
+    gtk_window_close(GTK_WINDOW(window));
+}
 
+static void on_save_click(GtkWidget *button, gpointer user_data){
+    GtkEntryBuffer *buffer = gtk_entry_buffer_new("filename", 400);
+    GtkWidget *parent_window = (GtkWidget*) user_data;
+    GtkWidget *dialog_window = gtk_window_new();
+    gtk_window_set_transient_for(GTK_WINDOW(dialog_window), GTK_WINDOW(parent_window));
+    gtk_window_set_modal(GTK_WINDOW(dialog_window), true);
+
+    GtkWidget *parent_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_window_set_child(GTK_WINDOW(dialog_window), parent_box);
+    GtkWidget *label = gtk_label_new("Do you want to save your file as png?");
+    gtk_box_append(GTK_BOX(parent_box), label);
+    label = gtk_label_new("Enter file name");
+    gtk_box_append(GTK_BOX(parent_box), label);
+    GtkWidget *textbox = gtk_entry_new_with_buffer(buffer);
+    gtk_box_append(GTK_BOX(parent_box), textbox);
+    GtkWidget *actionbar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    gtk_box_append(GTK_BOX(parent_box), actionbar);
+    TextWindow *a = g_new(TextWindow, 1);
+    a->buffer = buffer;
+    a->window = dialog_window;
+    GtkWidget *savebutton = gtk_button_new_with_label("Save");
+    g_signal_connect(savebutton, "clicked", G_CALLBACK(on_save_button),a );
+    GtkWidget *closebutton = gtk_button_new_with_label("Close");
+    g_signal_connect(closebutton, "clicked", G_CALLBACK(on_close_button), dialog_window);
+    gtk_box_append(GTK_BOX(actionbar), savebutton);
+    gtk_box_append(GTK_BOX(actionbar), closebutton);
+
+    gtk_window_present(GTK_WINDOW(dialog_window));
+
+
+
+    
+
+    
+
+    
+
+
+
+
+}
 
 static void activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *window;
@@ -153,6 +215,7 @@ static void activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *color_picker_dialog;
     GtkWidget *color_picker_button;
     GtkWidget *color_picker2;
+    GtkWidget *save_button;
     
 
 
@@ -180,7 +243,9 @@ static void activate(GtkApplication *app, gpointer user_data) {
     g_signal_connect(color_picker_button, "notify::rgba", G_CALLBACK(on_color_change), NULL);
     gtk_header_bar_pack_start(GTK_HEADER_BAR(header), color_picker_button);
     gtk_header_bar_pack_start(GTK_HEADER_BAR(header), color_picker2);
-   
+    save_button = gtk_button_new_from_icon_name("document-generic");
+    gtk_header_bar_pack_end(GTK_HEADER_BAR(header), save_button);
+    g_signal_connect(save_button, "clicked", G_CALLBACK(on_save_click), window);
 
 
     drawing_area = gtk_drawing_area_new();
@@ -197,6 +262,9 @@ static void activate(GtkApplication *app, gpointer user_data) {
     g_signal_connect(drag, "drag-begin", G_CALLBACK(drag_begin), drawing_area);
     g_signal_connect(drag, "drag-update",G_CALLBACK(drag_update), drawing_area);
     g_signal_connect(drag, "drag-end", G_CALLBACK(drag_end), drawing_area);
+    
+
+
 
     press = gtk_gesture_click_new();
     gtk_gesture_single_set_button(GTK_GESTURE_SINGLE(press), GDK_BUTTON_SECONDARY);
@@ -214,7 +282,6 @@ static void activate(GtkApplication *app, gpointer user_data) {
     gtk_window_present(GTK_WINDOW(window));
 
 }
-
 
 
 
