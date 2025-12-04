@@ -167,15 +167,20 @@ static void on_save_click(GtkWidget *button, gpointer user_data){
     GtkWidget *dialog_window = gtk_window_new();
     gtk_window_set_transient_for(GTK_WINDOW(dialog_window), GTK_WINDOW(parent_window));
     gtk_window_set_modal(GTK_WINDOW(dialog_window), true);
-
+    gtk_window_set_title(GTK_WINDOW(dialog_window), "Document save");
     GtkWidget *parent_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     gtk_window_set_child(GTK_WINDOW(dialog_window), parent_box);
     GtkWidget *label = gtk_label_new("Do you want to save your file as png?");
     gtk_box_append(GTK_BOX(parent_box), label);
     label = gtk_label_new("Enter file name");
-    gtk_box_append(GTK_BOX(parent_box), label);
+    GtkWidget *child_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
+    gtk_box_append(GTK_BOX(child_box), label);
     GtkWidget *textbox = gtk_entry_new_with_buffer(buffer);
-    gtk_box_append(GTK_BOX(parent_box), textbox);
+    gtk_box_append(GTK_BOX(child_box), textbox);
+    gtk_box_append(GTK_BOX(parent_box), child_box);
+
+
+
     GtkWidget *actionbar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
     gtk_box_append(GTK_BOX(parent_box), actionbar);
     TextWindow *a = g_new(TextWindow, 1);
