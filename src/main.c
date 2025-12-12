@@ -20,6 +20,7 @@ static void clear_surface(void) {
 typedef struct TextWindow{
     GtkWidget *window;
     GtkEntryBuffer *buffer;
+    GtkLabel *label;
 }TextWindow;
 
 
@@ -147,12 +148,15 @@ static void close_window(void) {
 }
 static void on_save_button(GtkWidget *widget, gpointer data){
     TextWindow *a = (TextWindow *)data;
-    char file_name[400];
-    strcpy(file_name, gtk_entry_buffer_get_text(a->buffer));
-    GtkWidget *window = a->window;
+    char file_name[600];
+    strcpy(file_name, gtk_entry_buffer_get_text( a->buffer));
     strcat(file_name, ".png");
+   g_autofree char *path = g_build_filename(gtk_label_get_text(a->label),file_name, NULL);
+    GtkWidget *window = a->window;
+  
     if(surface){
-        cairo_surface_write_to_png(surface, file_name);
+   cairo_status_t status =     cairo_surface_write_to_png(surface, path);
+   g_print("%d", status);
     }
     gtk_window_close(GTK_WINDOW(window));
 }
@@ -160,6 +164,42 @@ static void on_close_button(GtkWidget *widget, gpointer data){
     GtkWidget *window = (GtkWidget*) data;
     gtk_window_close(GTK_WINDOW(window));
 }
+
+static void folder_selected(GtkNativeDialog *dialog, int response, gpointer data){
+    GtkWidget *label = (GtkWidget *) data;
+    if(response ==GTK_RESPONSE_ACCEPT){
+        gtk_label_set_text(GTK_LABEL(label),g_file_get_path( gtk_file_chooser_get_file(GTK_FILE_CHOOSER(dialog))));
+
+    }
+    else{
+        gtk_label_set_text(GTK_LABEL(label), "Select your folder");
+    }
+    g_object_unref(dialog);
+}
+
+static void on_folder_choose(GtkWidget *button, gpointer data){
+    //use data to access label and implement folder name                                                `                                                                                                                                               
+    GtkWindow *parent_window = GTK_WINDOW(gtk_widget_get_root(button));
+    GtkWidget *label = (GtkWidget *)data;
+
+    GtkNativeDialog *dialog= GTK_NATIVE_DIALOG(gtk_file_chooser_native_new("Select folder", parent_window, GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER, "Select", "Cancel"));
+
+    g_autofree char *home_path = g_get_home_dir();
+    g_autoptr(GFile) dir = g_file_new_for_path(home_path);
+    if(dir){
+        gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(dialog),dir, NULL);
+    }
+
+    g_signal_connect(dialog, "response", G_CALLBACK(folder_selected), label);
+
+    gtk_native_dialog_show(dialog);
+
+
+
+
+}
+
+
 
 static void on_save_click(GtkWidget *button, gpointer user_data){
     GtkEntryBuffer *buffer = gtk_entry_buffer_new("filename", 400);
@@ -178,7 +218,13 @@ static void on_save_click(GtkWidget *button, gpointer user_data){
     GtkWidget *textbox = gtk_entry_new_with_buffer(buffer);
     gtk_box_append(GTK_BOX(child_box), textbox);
     gtk_box_append(GTK_BOX(parent_box), child_box);
-
+    GtkWidget *folder_chooser = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    label = gtk_label_new("Choose the directory");
+    gtk_box_append(GTK_BOX(folder_chooser), label);
+    GtkWidget *folder_button = gtk_button_new_with_label("Select Folder");
+    g_signal_connect(folder_button, "clicked", G_CALLBACK(on_folder_choose), label);
+    gtk_box_append(GTK_BOX(folder_chooser), folder_button);
+    gtk_box_append(GTK_BOX(parent_box), folder_chooser);
 
 
     GtkWidget *actionbar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
@@ -186,6 +232,7 @@ static void on_save_click(GtkWidget *button, gpointer user_data){
     TextWindow *a = g_new(TextWindow, 1);
     a->buffer = buffer;
     a->window = dialog_window;
+    a->label = GTK_LABEL(label);
     GtkWidget *savebutton = gtk_button_new_with_label("Save");
     g_signal_connect(savebutton, "clicked", G_CALLBACK(on_save_button),a );
     GtkWidget *closebutton = gtk_button_new_with_label("Close");
