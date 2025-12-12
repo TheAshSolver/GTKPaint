@@ -1,6 +1,6 @@
 #include<gtk/gtk.h>
 #include<string.h>
-
+#include<stdio.h>
 static cairo_surface_t *surface = NULL;
 static GdkRGBA primary_colors ={.red = 1.0,.blue = 0.0,.green =  0.0, .alpha = 1.0};
 static double brush_size = 6.0;
@@ -21,6 +21,8 @@ typedef struct TextWindow{
     GtkWidget *window;
     GtkEntryBuffer *buffer;
     GtkLabel *label;
+    GtkEntryBuffer *width_buffer;
+    GtkEntryBuffer *height_buffer;
 }TextWindow;
 
 
@@ -146,6 +148,39 @@ static void close_window(void) {
     }
 
 }
+static void save_image(char *file_name, int height, int width){
+    if(!surface){
+        g_print("Error");
+        return;
+    }
+    cairo_surface_t *target_surface = cairo_image_surface_create(cairo_image_surface_get_format(surface), width, height);
+    if(!target_surface){
+        g_print("Error. Target surface not created");
+        return;
+    }
+    cairo_t *cr= cairo_create(target_surface);
+    if(!cr){
+        g_print("Error in creating error context");
+        return;
+    }
+    int original_width = cairo_image_surface_get_width(surface);
+    int original_height = cairo_image_surface_get_height(surface);
+    if(height>original_height||width>original_width){
+        g_print("not possible");
+        return;
+    }
+    cairo_scale(cr, (float)width/original_width, (float)height/original_height);
+    cairo_set_source_surface(cr, surface, 0,0);
+    cairo_paint(cr);
+    cairo_status_t status = cairo_surface_write_to_png(target_surface, file_name);
+    g_print("%d", status);
+
+
+    cairo_destroy(cr);
+    cairo_surface_destroy(target_surface);
+
+
+}
 static void on_save_button(GtkWidget *widget, gpointer data){
     TextWindow *a = (TextWindow *)data;
     char file_name[600];
@@ -153,10 +188,13 @@ static void on_save_button(GtkWidget *widget, gpointer data){
     strcat(file_name, ".png");
    g_autofree char *path = g_build_filename(gtk_label_get_text(a->label),file_name, NULL);
     GtkWidget *window = a->window;
-  
+  char *given_width = gtk_entry_buffer_get_text(a->width_buffer);
+  char *given_height = gtk_entry_buffer_get_text( a->height_buffer);
+  int give_height, give_width;
+  sscanf(given_height, "%d", &give_height);
+  sscanf(given_width, "%d", &give_width);
     if(surface){
-   cairo_status_t status =     cairo_surface_write_to_png(surface, path);
-   g_print("%d", status);
+   save_image(path,give_height, give_width );
     }
     gtk_window_close(GTK_WINDOW(window));
 }
@@ -203,6 +241,14 @@ static void on_folder_choose(GtkWidget *button, gpointer data){
 
 static void on_save_click(GtkWidget *button, gpointer user_data){
     GtkEntryBuffer *buffer = gtk_entry_buffer_new("filename", 400);
+    GtkEntryBuffer *width_buffer = gtk_entry_buffer_new("", 400);
+    char original_height[300], original_width[300];
+    sprintf(original_height, "%d", cairo_image_surface_get_height(surface));
+    sprintf(original_width, "%d", cairo_image_surface_get_width(surface));
+    GtkEntryBuffer *height_buffer = gtk_entry_buffer_new("", 400);
+    gtk_entry_buffer_set_text(height_buffer, original_height, strlen(original_height));
+    gtk_entry_buffer_set_text(width_buffer, original_width, strlen(original_width));
+
     GtkWidget *parent_window = (GtkWidget*) user_data;
     GtkWidget *dialog_window = gtk_window_new();
     gtk_window_set_transient_for(GTK_WINDOW(dialog_window), GTK_WINDOW(parent_window));
@@ -225,6 +271,27 @@ static void on_save_click(GtkWidget *button, gpointer user_data){
     g_signal_connect(folder_button, "clicked", G_CALLBACK(on_folder_choose), label);
     gtk_box_append(GTK_BOX(folder_chooser), folder_button);
     gtk_box_append(GTK_BOX(parent_box), folder_chooser);
+    GtkWidget *width_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    GtkWidget *height_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    gtk_box_append(GTK_BOX(parent_box), width_box);
+    gtk_box_append(GTK_BOX(parent_box), height_box);
+
+    GtkWidget *width_label = gtk_label_new("Enter your width");
+    gtk_box_append(GTK_BOX(width_box), width_label);
+    GtkWidget *width_entry = gtk_entry_new();
+    gtk_entry_set_buffer(GTK_ENTRY(width_entry), width_buffer);
+    gtk_box_append(GTK_BOX(width_box), width_entry);
+
+    GtkWidget *height_label = gtk_label_new("Enter your height");
+    gtk_box_append(GTK_BOX(height_box), height_label);
+    GtkWidget *height_entry = gtk_entry_new();
+    gtk_entry_set_buffer(GTK_ENTRY(height_entry), height_buffer);
+    gtk_box_append(GTK_BOX(height_box), height_entry);
+
+
+
+
+    
 
 
     GtkWidget *actionbar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
@@ -233,6 +300,8 @@ static void on_save_click(GtkWidget *button, gpointer user_data){
     a->buffer = buffer;
     a->window = dialog_window;
     a->label = GTK_LABEL(label);
+    a->height_buffer = height_buffer;
+    a->width_buffer = width_buffer;
     GtkWidget *savebutton = gtk_button_new_with_label("Save");
     g_signal_connect(savebutton, "clicked", G_CALLBACK(on_save_button),a );
     GtkWidget *closebutton = gtk_button_new_with_label("Close");
