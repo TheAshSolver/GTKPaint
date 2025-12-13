@@ -63,10 +63,28 @@ static void print_hi(GtkWidget *widget, gpointer data){
 
 static void resize_cb(GtkWidget *widget, int width, int height, gpointer data) {
     if(surface) {
+        /*clear_surface();
         cairo_surface_destroy(surface);
-        surface = NULL;
+        surface = NULL;*/
+        int original_width = cairo_image_surface_get_width(surface);
+        int original_height = cairo_image_surface_get_height(surface);
+        if(original_width<width || original_height<height){
+        cairo_surface_t *new = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
+        cairo_surface_t *prev = surface;
+        cairo_t *cr = cairo_create(new);
+        cairo_set_source_rgb(cr, 0, 0, 0);
+        cairo_paint(cr);
+        cairo_set_source_surface(cr, prev,0,0);
+        cairo_paint(cr);
+        cairo_destroy(cr);
+        surface = new;
+        cairo_surface_destroy(prev);
+        gtk_widget_set_size_request(widget, width, height);
+        }
+        
+
     }
-    if(gtk_native_get_surface(gtk_widget_get_native(widget))) {
+    if(!surface&&gtk_native_get_surface(gtk_widget_get_native(widget))) {
         surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, gtk_widget_get_width(widget), gtk_widget_get_height(widget));
         clear_surface();
     }
@@ -327,6 +345,7 @@ static void on_save_click(GtkWidget *button, gpointer user_data){
 static void activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *window;
     GtkWidget *drawing_area;
+    GtkWidget *scrolled_window;
     GtkWidget *frame;
     GtkGesture *drag;
     GtkGesture *press;
@@ -339,7 +358,8 @@ static void activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *save_button;
     
 
-
+    scrolled_window = gtk_scrolled_window_new();
+    gtk_scrolled_window_set_has_frame(GTK_SCROLLED_WINDOW(scrolled_window), true);
     header = gtk_header_bar_new();
     button = gtk_button_new_from_icon_name("document-open-symbolic");
     gtk_widget_set_tooltip_text(button, "clear");
@@ -371,9 +391,10 @@ static void activate(GtkApplication *app, gpointer user_data) {
 
     drawing_area = gtk_drawing_area_new();
     gtk_widget_set_size_request(drawing_area, 100, 100);
-    frame = gtk_frame_new(NULL);
-    gtk_frame_set_child(GTK_FRAME(frame), drawing_area);
-    gtk_window_set_child(GTK_WINDOW(window), frame);
+    //frame = gtk_frame_new(NULL);
+    //gtk_frame_set_child(GTK_FRAME(frame), drawing_area);
+    gtk_window_set_child(GTK_WINDOW(window), scrolled_window);
+    gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scrolled_window), drawing_area);
     gtk_drawing_area_set_draw_func(GTK_DRAWING_AREA(drawing_area), draw_cb, NULL, NULL);
     g_signal_connect_after(drawing_area, "resize", G_CALLBACK(resize_cb), drawing_area);
     g_signal_connect(button, "clicked", G_CALLBACK(pressed), drawing_area);
