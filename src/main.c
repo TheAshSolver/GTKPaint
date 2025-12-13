@@ -68,8 +68,11 @@ static void resize_cb(GtkWidget *widget, int width, int height, gpointer data) {
         surface = NULL;*/
         int original_width = cairo_image_surface_get_width(surface);
         int original_height = cairo_image_surface_get_height(surface);
-        if(original_width<width || original_height<height){
-        cairo_surface_t *new = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
+        int new_width, new_height;
+        new_width= original_width>width?original_width:width;
+        new_height = original_height>height?original_height:height;
+        if(new_width>original_width || new_height>original_height){
+        cairo_surface_t *new = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, new_width, new_height);
         cairo_surface_t *prev = surface;
         cairo_t *cr = cairo_create(new);
         cairo_set_source_rgb(cr, 0, 0, 0);
@@ -79,7 +82,7 @@ static void resize_cb(GtkWidget *widget, int width, int height, gpointer data) {
         cairo_destroy(cr);
         surface = new;
         cairo_surface_destroy(prev);
-        gtk_widget_set_size_request(widget, width, height);
+        gtk_widget_set_size_request(widget, new_width, new_height);
         }
         
 
