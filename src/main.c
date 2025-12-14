@@ -5,10 +5,12 @@ static cairo_surface_t *surface = NULL;
 static GdkRGBA primary_colors ={.red = 1.0,.blue = 0.0,.green =  0.0, .alpha = 1.0};
 static double brush_size = 6.0;
 static GdkRGBA secondary_colors ={.red = 0.0, .blue=0.0, .green =0.0, .alpha=1.0};
+static GdkRGBA background_color={.red=0.0, .blue=0.0, .green=0.0, .alpha=1.0};
+
 static void clear_surface(void) {
     cairo_t *c = cairo_create(surface);
 
-    cairo_set_source_rgb(c, 0,0,0);
+    cairo_set_source_rgb(c, background_color.red, background_color.green, background_color.blue);
     cairo_paint(c);
     cairo_destroy(c);
     
@@ -51,6 +53,23 @@ static void on_secondary_color_change(GtkColorDialogButton *button, gpointer dat
     secondary_colors.green= rgba->green;
 }
 
+static void on_background_color(GtkColorDialogButton *button, gpointer data){
+    if(!surface){
+        return;
+    }
+    GtkWidget *bg = (GtkWidget *)data;
+    const GdkRGBA *rgba = gtk_color_dialog_button_get_rgba(button);
+    background_color.red = rgba->red;
+    background_color.blue = rgba->blue;
+    background_color.green = rgba->green;
+    cairo_t *cr = cairo_create(surface);
+    cairo_set_source_rgb(cr, background_color.red, background_color.green, background_color.blue);
+    cairo_set_operator(cr, CAIRO_OPERATOR_DEST_OVER);
+    cairo_paint(cr);
+    cairo_destroy(cr);
+    gtk_widget_queue_draw(bg);
+
+}
 
 static void on_brush_width_change(GtkRange *range, gpointer data){
     brush_size = gtk_range_get_value(range);
@@ -75,7 +94,7 @@ static void resize_cb(GtkWidget *widget, int width, int height, gpointer data) {
         cairo_surface_t *new = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, new_width, new_height);
         cairo_surface_t *prev = surface;
         cairo_t *cr = cairo_create(new);
-        cairo_set_source_rgb(cr, 0, 0, 0);
+        cairo_set_source_rgb(cr, background_color.red, background_color.green, background_color.blue);
         cairo_paint(cr);
         cairo_set_source_surface(cr, prev,0,0);
         cairo_paint(cr);
@@ -350,6 +369,7 @@ static void activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *drawing_area;
     GtkWidget *scrolled_window;
     GtkWidget *frame;
+    GtkWidget *background_color_picker;
     GtkGesture *drag;
     GtkGesture *press;
     GtkWidget *header;
@@ -390,10 +410,16 @@ static void activate(GtkApplication *app, gpointer user_data) {
     save_button = gtk_button_new_from_icon_name("document-generic");
     gtk_header_bar_pack_end(GTK_HEADER_BAR(header), save_button);
     g_signal_connect(save_button, "clicked", G_CALLBACK(on_save_click), window);
-
+    
+   
+   
 
     drawing_area = gtk_drawing_area_new();
     gtk_widget_set_size_request(drawing_area, 100, 100);
+    background_color_picker = gtk_color_dialog_button_new(gtk_color_dialog_new());
+    gtk_color_dialog_button_set_rgba(GTK_COLOR_DIALOG_BUTTON(background_color_picker), &background_color);
+    g_signal_connect(background_color_picker, "notify::rgba", G_CALLBACK(on_background_color), drawing_area);
+     gtk_header_bar_pack_end(GTK_HEADER_BAR(header), background_color_picker);
     //frame = gtk_frame_new(NULL);
     //gtk_frame_set_child(GTK_FRAME(frame), drawing_area);
     gtk_window_set_child(GTK_WINDOW(window), scrolled_window);
