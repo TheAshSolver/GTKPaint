@@ -7,14 +7,37 @@ static double brush_size = 6.0;
 static GdkRGBA secondary_colors ={.red = 0.0, .blue=0.0, .green =0.0, .alpha=1.0};
 static GdkRGBA background_color={.red=0.0, .blue=0.0, .green=0.0, .alpha=1.0};
 
+
+
+typedef struct Action {
+double x1;
+double  y1;
+double  x2;
+double y2;
+double brush_size;
+GdkRGBA color;
+struct Action *next;
+}Action;
+
+
+Action *head = NULL;
+
+
 static void clear_surface(void) {
     cairo_t *c = cairo_create(surface);
 
     cairo_set_source_rgb(c, background_color.red, background_color.green, background_color.blue);
     cairo_paint(c);
     cairo_destroy(c);
-    
+    Action *curr = head;
+    Action *prev= head;
+    while(curr!=NULL){
+        prev = curr;
+        curr= curr->next;
+        free(prev);
+    }
 
+    head = NULL;
 
 
 }
@@ -53,6 +76,34 @@ static void on_secondary_color_change(GtkColorDialogButton *button, gpointer dat
     secondary_colors.green= rgba->green;
 }
 
+static void undo(){
+    Action *curr = head;
+    Action *prev;
+    if(curr==NULL){
+        return ;
+    }
+    while(curr->next!=NULL){
+        prev = curr;
+        curr = curr->next;
+    }
+    cairo_t *cr = cairo_create(surface);
+    cairo_set_source_rgb(cr, background_color.red, background_color.green, background_color.blue);
+    cairo_set_line_width(cr, curr->brush_size);
+    cairo_set_antialias(cr, CAIRO_ANTIALIAS_BEST);
+    cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
+    cairo_move_to(cr, curr->x2, curr->y2);
+    cairo_line_to(cr, curr->x1, curr->y1);
+    cairo_stroke(cr);
+
+    prev->next = NULL;
+    cairo_destroy(cr);
+
+
+
+}
+
+
+
 static void on_background_color(GtkColorDialogButton *button, gpointer data){
     if(!surface){
         return;
@@ -64,9 +115,22 @@ static void on_background_color(GtkColorDialogButton *button, gpointer data){
     background_color.green = rgba->green;
     cairo_t *cr = cairo_create(surface);
     cairo_set_source_rgb(cr, background_color.red, background_color.green, background_color.blue);
-    cairo_set_operator(cr, CAIRO_OPERATOR_DEST_OVER);
     cairo_paint(cr);
+    Action *curr = head;
+    while(curr!=NULL){
+        g_print("%d %d", curr->x1, curr->x2);
+        cairo_set_source_rgb(cr, curr->color.red, curr->color.green, curr->color.blue);
+        cairo_set_line_width(cr, curr->brush_size);
+        cairo_set_antialias(cr, CAIRO_ANTIALIAS_BEST);
+        cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
+        cairo_move_to(cr, curr->x1, curr->y1);
+        cairo_line_to(cr, curr->x2, curr->y2);
+        cairo_stroke(cr);
+        curr=curr->next;
+    }
+
     cairo_destroy(cr);
+
     gtk_widget_queue_draw(bg);
 
 }
@@ -136,7 +200,34 @@ static void draw_brush(GtkWidget *widget, double x, double y, double end_x, doub
     cairo_move_to(cairo, x,y);
     cairo_line_to(cairo, end_x, end_y);
     cairo_stroke(cairo);
+    if(head){
+        Action *temp = head;
+        while(temp->next!=NULL){
+            temp = temp->next;
+        }
+        Action *new = malloc(sizeof(Action));
+        new->brush_size = brush_size;
+        new->color = primary_colors;
+        new->x1 = x;
+        new->y1 = y;
+        new->x2 = end_x;
+        new->y2 = end_y;
+        temp->next = new;
+        new->next = NULL;
 
+    }
+    else{
+       Action *new = malloc(sizeof(Action));
+        new->brush_size = brush_size;
+        new->color = primary_colors;
+        new->x1 = x;
+        new->y1 = y;
+        new->x2 = end_x;
+        new->y2 = end_y; 
+        head = new;
+        head->next = NULL;
+
+    }
     cairo_destroy(cairo);
     gtk_widget_queue_draw(widget);
 
